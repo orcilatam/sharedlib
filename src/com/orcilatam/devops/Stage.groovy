@@ -100,31 +100,15 @@ class Stage {
 	}
 
 
-	static def runSonarQube(script, qualityGateKey = null) {
+	static def runSonarQube(script) {
 		script.sh '''set +x
 			mvn \
 			-Dmaven.compile.skip=true \
 			-Dmaven.test.skip=true \
 			install \
-				org.sonarsource.scanner.maven:sonar-maven-plugin:3.6.0.1398:sonar \
+				org.sonarsource.scanner.maven:sonar-maven-plugin:3.7.0.1746:sonar \
 				-Dsonar.host.url=http://sonarqube:9000
 		'''
-
-		// Consultar la API de SonarQube para obtener el resutado de la Quality Gate
-		if(qualityGateKey != null) {
-			script.sh """set +x
-				# Esperar 30 segundos por el análisis
-				sleep 30
-
-				API=http://sonarqube:9000/api
-				result=\$( curl \
-					-s \$API/qualitygates/project_status?projectKey=${qualityGateKey} | \
-					jq '.projectStatus.status' | tr -d '"' )
-
-				[ "\$result" == "ERROR" ] && exit 1
-				exit 0
-			"""
-		}
 	}
 
 
@@ -155,21 +139,17 @@ class Stage {
 		}
 	}
 
-
-	static def buildDockerImage(
-		script, pushRegistry, projectName, projectVersion, pullFromSecureRegistry = false)
-	{
+	static def buildDockerImage(script, pushRegistry, projectName, projectVersion) {
 		if(projectName ==~ /\{\{ *project.name *\}\}/ && Stage.parsedProjectName != null)
 			projectName = Stage.parsedProjectName
 		if(projectVersion ==~ /\{\{ *project.version *\}\}/ && Stage.parsedProjectVersion != null)
 			projectVersion = Stage.parsedProjectVersion
 
-		image = script.docker.build("$pushRegistry/$projectName:$projectVersion", "--pull .")
+		def image = script.docker.build("$pushRegistry/$projectName:$projectVersion", "--pull .")
 		script.docker.withRegistry("http://${pushRegistry}", 'registry-push-user') {
 			image.push()
 		}
 	}
-
 
 	static def scanWithClair(script, pushRegistry, projectName, projectVersion) {
 		if(projectName ==~ /\{\{ *project.name *\}\}/ && Stage.parsedProjectName != null)
@@ -214,10 +194,10 @@ class Stage {
 		def unattended = values.get(0)
 		for(value in values) {
 			def v = value.toUpperCase()
-			if(script.env.BRANCH_NAME == 'develop' && (v =~ "DEV" || v =~ "DESA")) {
+			if(script.env.BRANCH_NAME == 'develop' && (v =~ "DEV" || v =~ "DES")) {
 				unattended = value
 				break
-			} else if(script.env.branch_name == 'release' && (v =~ "UAT" || v =~ "TEST" || v ~= "QA")) {
+			} else if(script.env.branch_name == 'release' && (v =~ "UAT" || v =~ "TEST" || v =~ "QA")) {
 				unattended = value
 				break
 			} else if(script.env.branch_name == 'master' && (v =~ "PROD" || v =~ "PRD")) {
