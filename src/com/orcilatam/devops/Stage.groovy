@@ -65,7 +65,7 @@ class Stage {
 
 
 	static def buildMaven(script) {
-		parseProjectParameters(script, 'pom.xml')  // Inicializa parsedProjectName y parsedProjectVersion
+		parseProjectParameters(script, 'pom.xml')  // Inicializa {{ variables de remplazo }}
 		script.sh 'mvn clean && mvn compile'
 	}
 
@@ -140,10 +140,10 @@ class Stage {
 	}
 
 
-	static def buildDockerImage(script, pushRegistry, projectName, projectVersion) {
-		if(projectName ==~ /\{\{ *project.name *\}\}/ && Stage.parsedProjectName != null)
+	static def buildDockerImage(script, pushRegistry, projectName = null, projectVersion = null) {
+		if(projectName == null && Stage.parsedProjectName != null)
 			projectName = Stage.parsedProjectName
-		if(projectVersion ==~ /\{\{ *project.version *\}\}/ && Stage.parsedProjectVersion != null)
+		if(projectVersion == null && Stage.parsedProjectVersion != null)
 			projectVersion = Stage.parsedProjectVersion
 
 		projectImage = script.docker.build("$pushRegistry/$projectName:$projectVersion", "--pull .")
