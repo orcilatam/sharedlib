@@ -5,7 +5,7 @@ class Stage {
 	static String parsedProjectName = null
 	static String parsedProjectVersion = null
 	static String selectedRollbackTag = null
-
+	static def projectImage = null
 
 	static def waitForOK(script, seconds, callback) {
 		def ok = true
@@ -48,14 +48,14 @@ class Stage {
 	static def parseProjectParameters(script, projectFile) {
 		if(projectFile == 'pom.xml') {
 			def name = script.sh(
-				script: "cat pom.xml | grep '<name>[A-Za-z_-]\\+</name>' | head -n 1 | sed 's/name>//g' | grep -o '[A-Za-z_-]\\+' || true",
+				script: "xmllint --xpath \"/*[local-name()='project']/*[local-name()='name']/text()\" pom.xml",
 				returnStdout: true
 			).trim()
 			if(name > "")
 				Stage.parsedProjectName = name
 
 			def version = script.sh(
-				script: "cat pom.xml | grep '<version>[0-9\\.]\\+</version>' | head -n 1 | sed 's/version>//g' | grep -o '[0-9\\.]\\+' || true",
+				script: "xmllint --xpath \"/*[local-name()='project']/*[local-name()='version']/text()\" pom.xml",
 				returnStdout: true
 			).trim()
 			if(version > "")
@@ -119,7 +119,7 @@ class Stage {
 	}
 
 
-	static def uploadToArtifactory(script) {
+	static def uploadArtifactToArtifactory(script) {
 		script.echo '*** Subiendo artefacto a Artifactory'
 		script.withCredentials([script.usernamePassword(
 			credentialsId: 'artifactory-deployment-user',
@@ -139,17 +139,24 @@ class Stage {
 		}
 	}
 
+
 	static def buildDockerImage(script, pushRegistry, projectName, projectVersion) {
 		if(projectName ==~ /\{\{ *project.name *\}\}/ && Stage.parsedProjectName != null)
 			projectName = Stage.parsedProjectName
 		if(projectVersion ==~ /\{\{ *project.version *\}\}/ && Stage.parsedProjectVersion != null)
 			projectVersion = Stage.parsedProjectVersion
 
-		def image = script.docker.build("$pushRegistry/$projectName:$projectVersion", "--pull .")
+		projectImage = script.docker.build("$pushRegistry/$projectName:$projectVersion", "--pull .")
+	}
+
+
+	static def pushImageToArtifactory(script, pushRegistry) {
 		script.docker.withRegistry("http://${pushRegistry}", 'registry-push-user') {
-			image.push()
+			if(projectImage != null)
+				projectImage.push()
 		}
 	}
+
 
 	static def scanWithClair(script, pushRegistry, projectName, projectVersion) {
 		if(projectName ==~ /\{\{ *project.name *\}\}/ && Stage.parsedProjectName != null)
