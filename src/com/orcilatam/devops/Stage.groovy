@@ -4,38 +4,7 @@ class Stage {
 
 	static String parsedProjectName = null
 	static String parsedProjectVersion = null
-	static String selectedRollbackTag = null
 	static def projectImage = null
-
-	static def waitForOK(script, seconds, callback) {
-		def ok = true
-		try {
-			script.timeout(time: seconds, unit:'SECONDS') {
-				script.input(message: "${script.STAGE_NAME}?", ok: "Ejecutar")
-			}
-		} catch(e) {
-			ok = false // Cancelado o se pasó el tiempo
-		} finally {
-			if(ok) {
-				callback.call()
-			}
-		}
-	}
-
-
-	static def waitForChoice(script, seconds, chooser, unattended, callback) {
-		def selected = unattended
-		try {
-			script.timeout(time: seconds, unit:'SECONDS') {
-				selected = chooser.call()
-			}
-		} catch(e) {
-			selected = unattended // Cancelado o se pasó del tiempo
-		} finally {
-			script.echo "Ambiente de despliegue seleccionado: ${selected}"
-			callback.call(selected)
-		}
-	}
 
 
 	static def replacePlaceholder(script, filename, placeholder, value) {
@@ -119,27 +88,6 @@ class Stage {
 	}
 
 
-	static def uploadArtifactToArtifactory(script) {
-		script.echo '*** Subiendo artefacto a Artifactory'
-		script.withCredentials([script.usernamePassword(
-			credentialsId: 'artifactory-deployment-user',
-			usernameVariable: 'ARTIFACTORY_USERNAME',
-			passwordVariable: 'ARTIFACTORY_PASSWORD'
-		)]) {
-			script.sh '''set +x
-				mvn \
-				-Dmaven.compile.skip=true \
-				-Dmaven.test.skip=true \
-				-Dmaven.package.skip=true \
-				-Dmaven.install.skip=true \
-				-Dartifactory.username="$ARTIFACTORY_USERNAME" \
-				-Dartifactory.password="$ARTIFACTORY_PASSWORD" \
-				deploy
-			'''
-		}
-	}
-
-
 	static def buildDockerImage(script, pushRegistry, projectName = null, projectVersion = null) {
 		if(projectName == null && Stage.parsedProjectName != null)
 			projectName = Stage.parsedProjectName
@@ -155,16 +103,6 @@ class Stage {
 			if(projectImage != null)
 				projectImage.push()
 		}
-	}
-
-
-	static def scanWithClair(script, pushRegistry, projectName, projectVersion) {
-		if(projectName ==~ /\{\{ *project.name *\}\}/ && Stage.parsedProjectName != null)
-			projectName = Stage.parsedProjectName
-		if(projectVersion ==~ /\{\{ *project.version *\}\}/ && Stage.parsedProjectVersion != null)
-			projectVersion = Stage.parsedProjectVersion
-
-		// TODO
 	}
 
 
@@ -187,94 +125,12 @@ class Stage {
 	}
 
 
-	static def rollbackKubernetes(script, kubeConfig, namespace, yaml) {
-		if(Stage.parsedProjectName != null)
-			replacePlaceholder(script, yaml, 'project.name', Stage.parsedProjectName)
-		if(Stage.selectedRollbackTag != null)
-			replacePlaceholder(script, yaml, 'project.version', Stage.selectedRollbackTag)
-
-		kubectlApply(script, kubeConfig, namespace, yaml, false)
-	}
-
-
-	static def selectDeploy(script, seconds, values, callback) {
-		def unattended = values.get(0)
-		for(value in values) {
-			def v = value.toUpperCase()
-			if(script.env.BRANCH_NAME == 'develop' && (v =~ "DEV" || v =~ "DES")) {
-				unattended = value
-				break
-			} else if(script.env.branch_name == 'release' && (v =~ "UAT" || v =~ "TEST" || v =~ "QA")) {
-				unattended = value
-				break
-			} else if(script.env.branch_name == 'master' && (v =~ "PROD" || v =~ "PRD")) {
-				unattended = value
-				break
-			}
+	static def installIngressController(script, kubeConfig, namespace, name, chart) {
+		script.withKubeConfig([ credentialsId: kubeConfig, namespace: namespace ]) {
+			script.sh """set +x
+				helm install ${name} ${chart} --set controller.publishService.enabled=true
+			"""
 		}
-		waitForChoice(script, seconds, {
-			script.input(
-				message: "Seleccione ambiente:",
-				ok: "Desplegar",
-				parameters: [script.choice(
-					name: 'DEPLOY',
-					choices: values.join("\n"),
-				)]
-			)},
-			unattended,
-			{ selected -> callback.call(selected) }
-		)
-	}
-
-
-    static def selectRollbackDockerImage(script, pushRegistry, projectName) {
-		Stage.selectedRollbackTag = null
-
-		parseProjectParameters(script, 'pom.xml')
-		if(projectName ==~ /\{\{ *project.name *\}\}/ && Stage.parsedProjectName != null)
-			projectName = Stage.parsedProjectName
-
-		script.withCredentials([script.usernamePassword(
-			credentialsId: 'registry-push-user',
-			usernameVariable: 'REGISTRY_USERNAME',
-			passwordVariable: 'REGISTRY_PASSWORD'
-		)]) {
-			def taglist = script.sh(
-				returnStdout: true,	
-				script: """set +x
-					curl -sL \\
-					-u "\${REGISTRY_USERNAME}:\${REGISTRY_PASSWORD}" \\
-					https://${pushRegistry}/v2/${projectName}/tags/list | \\
-					jq '.tags[]' | \\
-					tr -d '"'
-				"""
-			).trim()
-			if(taglist == "") {
-				script.sh "false"
-			}
-			def tag = script.input(
-				message: "Seleccione una imagen de  Docker:",
-				ok: "Seleccionar",
-				parameters: [script.choice(
-					name: 'TAG',
-					choices: taglist,
-				)])
-			if(tag > "")
-				Stage.selectedRollbackTag = tag
-		}
-	}
-
-
-	static def selectDeployToKubernetes(script, seconds, values, callback) {
-		selectDeploy(script, seconds, values, callback)
-	}
-
-	static def selectRollback(script, seconds, values, callback) {
-		selectDeploy(script, seconds, values, callback)
-	}
-
-	static def selectRollbackKubernetes(script, seconds, values, callback) {
-		selectDeploy(script, seconds, values, callback)
 	}
 
 }
