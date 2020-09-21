@@ -124,11 +124,13 @@ class Stage {
 		kubectlApply(script, kubeConfig, namespace, yaml)
 	}
 
-
-	static def installIngressController(script, kubeConfig, namespace, name, chart) {
+	static def installNginxIngressController(script, kubeConfig, namespace, name) {
 		script.withKubeConfig([ credentialsId: kubeConfig, namespace: namespace ]) {
 			script.sh """set +x
-				helm install ${name} ${chart} --set controller.publishService.enabled=true
+				helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+				helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+				helm repo update
+				helm install ${name} ingress-nginx/ingress-nginx --set controller.publishService.enabled=true
 			"""
 		}
 	}
