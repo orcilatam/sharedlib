@@ -69,15 +69,18 @@ class Stage {
 	}
 
 
-	static def runSonarQube(script) {
-		script.sh '''set +x
-			mvn \
-			-Dmaven.compile.skip=true \
-			-Dmaven.test.skip=true \
-			install \
-				org.sonarsource.scanner.maven:sonar-maven-plugin:3.7.0.1746:sonar \
-				-Dsonar.host.url=http://sonarqube:9000
-		'''
+	static def runSonarQube(script, sonarHostPort) {
+		return true
+/*
+		script.sh """set +x
+			mvn \\
+			-Dmaven.compile.skip=true \\
+			-Dmaven.test.skip=true \\
+			install \\
+				org.sonarsource.scanner.maven:sonar-maven-plugin:3.7.0.1746:sonar \\
+				-Dsonar.host.url=http://${sonarHostPort}
+		"""
+*/
 	}
 
 
@@ -98,8 +101,8 @@ class Stage {
 	}
 
 
-	static def pushImageToArtifactory(script, pushRegistry) {
-		script.docker.withRegistry("http://${pushRegistry}", 'registry-push-user') {
+	static def pushImageToArtifactory(script, pushRegistry, registryId) {
+		script.docker.withRegistry("http://${pushRegistry}", registryId) {
 			if(projectImage != null)
 				projectImage.push()
 		}
@@ -124,36 +127,51 @@ class Stage {
 		kubectlApply(script, kubeConfig, namespace, yaml)
 	}
 
+
+	static def updateHelmRepositories(script) {
+		script.sh """set +x
+			if ! helm repo ls -o json | grep -v 'WARNING' | jq '.[].name' | grep '\"stable\"'; then
+				helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+			fi
+			if ! helm repo ls -o json | grep -v 'WARNING' | jq '.[].name' | grep '\"ingress-nginx\"'; then
+				helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+			fi
+			helm repo update
+		"""
+	}
+
+
 	static def installNginxIngressController(script, kubeConfig, namespace, name) {
 		script.withKubeConfig([ credentialsId: kubeConfig, namespace: namespace ]) {
 			script.sh """set +x
-				helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-				helm repo add stable https://kubernetes-charts.storage.googleapis.com/
-				helm repo update
-				helm install ${name} ingress-nginx/ingress-nginx --set controller.publishService.enabled=true
+				if ! helm ls -o json | grep -v 'WARNING' | jq '.[].name' | grep '"${name}"'; then
+					helm install ${name} \\
+						ingress-nginx/ingress-nginx \\
+						--set controller.publishService.enabled=true
+				fi
 			"""
 		}
 	}
 
 
-	static def standUpInfrastructure(script, pushRegistry) {
+	static def standUpInfrastructure(script, tokenId, pushRegistry, registryId) {
 		script.withCredentials([script.usernamePassword(
-			credentialsId: 'registry-push-user',
-			usernameVariable: 'ARTIFACTORY_USERNAME',
-			passwordVariable: 'ARTIFACTORY_PASSWORD')])
+			credentialsId: registryId,
+			usernameVariable: 'REGISTRY_USERNAME',
+			passwordVariable: 'REGISTRY_PASSWORD')])
 		{
 			script.withCredentials([script.string(
-				credentialsId: 'digitalocean-token',
-				variable: 'DO_TOKEN')])
+				credentialsId: tokenId,
+				variable: 'TOKEN')])
 			{
-				script.sh """set +x
-					echo terraform init && \\
-					echo terraform apply -auto-approve \\
-						-var "token=${DO_TOKEN}" \\
-						-var "registry-host=${pushRegistry}" \\
-						-var "registry-username=${ARTIFACTORY_USERNAME}" \\
-						-var "registry-password=${ARTIFACTORY_PASSWORD}»"
-				"""
+				script.sh '''set +x
+					terraform init && \
+					terraform apply -auto-approve \
+						-var "token=$TOKEN" \
+						-var "registry-host=''' + pushRegistry + '''" \
+						-var "registry-username=$REGISTRY_USERNAME" \
+						-var "registry-password=$REGISTRY_PASSWORD"
+				'''
 			}
 		}
 	}
