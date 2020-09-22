@@ -138,7 +138,7 @@ class Stage {
 
 	static def standUpInfrastructure(script, pushRegistry) {
 		script.withCredentials([script.usernamePassword(
-			credentialsId: 'registy-push-user',
+			credentialsId: 'registry-push-user',
 			usernameVariable: 'ARTIFACTORY_USERNAME',
 			passwordVariable: 'ARTIFACTORY_PASSWORD')])
 		{
