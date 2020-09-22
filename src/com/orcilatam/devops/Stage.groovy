@@ -135,4 +135,26 @@ class Stage {
 		}
 	}
 
+
+	static def standUpInfrastructure(script, pushRegistry) {
+		script.withCredentials([script.usernamePassword(
+			credentialsId: 'registy-push-user',
+			usernameVariable: 'ARTIFACTORY_USERNAME',
+			passwordVariable: 'ARTIFACTORY_PASSWORD')])
+		{
+			script.withCredentials([script.string(
+				credentialsId: 'digitalocean-token',
+				variable: 'DO_TOKEN')])
+			{
+				script.sh """set +x
+					echo terraform init && \\
+					echo terraform apply -auto-approve \\
+						-var "token=${DO_TOKEN}" \\
+						-var "registry-host=${pushRegistry}" \\
+						-var "registry-username=${ARTIFACTORY_USERNAME}" \\
+						-var "registry-password=${ARTIFACTORY_PASSWORD}»"
+				"""
+			}
+		}
+	}
 }
