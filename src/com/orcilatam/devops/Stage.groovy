@@ -175,4 +175,30 @@ class Stage {
 			}
 		}
 	}
+
+
+	static def sendSlackMessage(script, text) {
+		script.slackSend(color: "#ffffff", message: text)
+	}
+
+
+	static def sendSlackWarning(script, text) {
+		script.slackSend(color:"#ffff00", message: text)
+	}
+
+
+	static def sendSlackSuccess(script, text) {
+		script.slackSend(color:"#00ff00", message: text)
+	}
+
+
+	static def sendSlackAlert(script, text) {
+		script.slackSend(color:"#ff0000", message: text)
+	}
+
+
+	static def sendSlackStageMessage(script) {
+		sendSlackMessage(script, String.format("%s: %s", script.env.JOB_NAME, script.env.STAGE_NAME))
+	}
+
 }
