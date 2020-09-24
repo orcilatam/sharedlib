@@ -57,7 +57,7 @@ class Stage {
 	static def runOWASPDependencyChecks(script, target = '.') {
 		script.dependencyCheck(
 			odcInstallation: 'dependency-check',
-			additionalArguments: "--scan ${target} -n --disableRetireJS true --format XML",
+			additionalArguments: "--scan ${target} --format XML",
 			skipOnScmChange: true,
 			skipOnUpstreamChange: true)
 		script.dependencyCheckPublisher(
