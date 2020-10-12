@@ -177,6 +177,18 @@ class Stage {
 	}
 
 
+	static def tearDownInfrastructure(script, tokenId) {
+		script.withCredentials([script.string(
+			credentialsId: tokenId,
+			variable: 'TOKEN')])
+		{
+			script.sh '''set +x
+				terraform destroy -auto-approve -var "token=$TOKEN"
+			'''
+		}
+	}
+
+
 	static def sendSlackMessage(script, text) {
 		script.slackSend(color: "#ffffff", message: text)
 	}
