@@ -14,6 +14,22 @@ class Stage {
 	}
 
 
+	static def waitForOK(script, seconds, callback) {
+		def ok = true
+		try {
+			script.timeout(time: seconds, unit:'SECONDS') {
+				script.input(message: "${script.STAGE_NAME}", ok: "Ejecutar")
+			}
+		} catch(e) {
+			ok = false
+		} finally {
+			if(ok) {
+				callback.call()
+			}
+		}
+	}
+
+
 	static def parseProjectParameters(script, projectFile) {
 		if(projectFile == 'pom.xml') {
 			def name = script.sh(
