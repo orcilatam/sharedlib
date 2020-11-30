@@ -86,7 +86,6 @@ class Stage {
 
 
 	static def runSonarQube(script, sonarHostPort) {
-		return true
 		script.sh """set +x
 			mvn \\
 			-Dmaven.compile.skip=true \\
