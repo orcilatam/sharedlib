@@ -87,7 +87,6 @@ class Stage {
 
 	static def runSonarQube(script, sonarHostPort) {
 		return true
-/*
 		script.sh """set +x
 			mvn \\
 			-Dmaven.compile.skip=true \\
@@ -96,7 +95,6 @@ class Stage {
 				org.sonarsource.scanner.maven:sonar-maven-plugin:3.7.0.1746:sonar \\
 				-Dsonar.host.url=http://${sonarHostPort}
 		"""
-*/
 	}
 
 
