@@ -86,14 +86,20 @@ class Stage {
 
 
 	static def runSonarQube(script, sonarHostPort) {
-		script.sh """set +x
-			mvn \\
-			-Dmaven.compile.skip=true \\
-			-Dmaven.test.skip=true \\
-			install \\
-				org.sonarsource.scanner.maven:sonar-maven-plugin:3.7.0.1746:sonar \\
-				-Dsonar.host.url=http://${sonarHostPort}
-		"""
+		script.withCredentials([script.string(
+			credentialsId: 'sonarqube-token',
+			variable: 'TOKEN')])
+		{
+			script.sh """set +x
+				mvn \\
+				-Dmaven.compile.skip=true \\
+				-Dmaven.test.skip=true \\
+				install \\
+					org.sonarsource.scanner.maven:sonar-maven-plugin:3.7.0.1746:sonar \\
+					-Dsonar.login=\$TOKEN \\
+					-Dsonar.host.url=http://${sonarHostPort}
+			"""
+		}
 	}
 
 
