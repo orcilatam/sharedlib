@@ -55,6 +55,13 @@ class Stage {
 	}
 
 
+	static def buildPython(script, name, version) {
+		Stage.parsedProjectName = name
+		Stage.parsedProjectVersion = version
+		script.sh "python3 -m compileall ${name}"
+	}
+
+
 	static def testJUnit(script) {
 		script.sh '''set +x
 			mvn \
