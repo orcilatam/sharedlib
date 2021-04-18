@@ -58,7 +58,11 @@ class Stage {
 	static def buildPython(script, name, version) {
 		Stage.parsedProjectName = name
 		Stage.parsedProjectVersion = version
-		script.sh "python3 -m compileall ${name}"
+
+		script.sh """set +x
+      python3 -m venv venv
+      ./venv/bin/python3 -m compileall ${name}
+    """
 	}
 
 
@@ -74,6 +78,13 @@ class Stage {
 		if(exitCode == 0) {
 			script.junit 'target/surefire-reports/TEST*.xml'
 		}
+	}
+
+
+	static def testPython(script) {
+		script.sh """set +x
+      ./venv/bin/python3 -m unittest discover -v -s ${Stage.parsedProjectName} -p '*.py'
+		"""
 	}
 
 
