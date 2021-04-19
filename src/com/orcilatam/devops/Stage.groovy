@@ -125,6 +125,23 @@ class Stage {
 	}
 
 
+	static def runSonarQubePython(script, sonarHostPort, projectKey = 'default') {
+		script.withCredentials([script.string(
+			credentialsId: 'sonarqube-token',
+			variable: 'TOKEN')])
+		{
+			script.sh """set +x
+					/opt/sonar-scanner/bin/sonar-scanner \\
+					-Dsonar.host.url=http://${sonarHostPort} \\
+					-Dsonar.login=\$TOKEN \\
+					-Dsonar.projectKey=${projectKey}\\
+					-Dsonar.projectName=${Stage.parsedProjectName}\\
+					-Dsonar.projectVersion=${Stage.parsedProjectVersion}\\
+			"""
+		}
+	}
+
+
 	static def packageArtifact(script) {
 		script.sh '''set +x
 			mvn -Dmaven.compile.skip=true -Dmaven.test.skip=true package
