@@ -189,7 +189,7 @@ class Stage {
 	static def updateHelmRepositories(script) {
 		script.sh """set +x
 			if ! helm repo ls -o json | grep -v 'WARNING' | jq '.[].name' | grep '\"stable\"'; then
-				helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+				helm repo add stable https://charts.helm.sh/stable
 			fi
 			if ! helm repo ls -o json | grep -v 'WARNING' | jq '.[].name' | grep '\"ingress-nginx\"'; then
 				helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
