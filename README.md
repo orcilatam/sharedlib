@@ -15,3 +15,7 @@ Mantener los detalles de implementación de los pipelines en un shared library t
 
 1. El `Jenkinsfile` se mantiene conciso y legible; consta sólo de funciones de alto nivel
 2. Las mejoras y bugfixes en la biblioteca están disponibles automática e instantáneamente para todos los pipelines
+
+---
+
+Copyright &copy; 2021 Marco Bravo, con licencia [GPL v3](LICENSE)
